@@ -1,0 +1,33 @@
+--Yıllara göre alınan ödemeler için, kaç farklı kategoride ödeme yapılmıştır? Toplam kategori sayısı ile birlikte, her bir ödeme tipine göre ne kadar ödeme alınmıştır?
+with  Years_Of_Payment as (
+select 
+EXTRACT(YEAR FROM O.order_purchase_timestamp) AS YEAR,
+   CASE 
+     WHEN OP.payment_type IS NULL THEN 'not registered'
+     ELSE OP.payment_type
+   END AS PAYMENT_TYPE,
+   P.product_category_name AS CATEGORY,
+   SUM(OP.payment_value) AS TOTAL_SALLARY
+from `olist.orderItems` I
+INNER JOIN `olist.orders` O ON O.order_id=I.order_id
+INNER JOIN `olist.orderPayment` OP ON I.order_id=OP.order_id
+INNER JOIN `olist.product` P ON I.product_id=P.product_id
+where
+ -- O.order_status = LOWER('approved') AND
+  OP.payment_type IS NOT NULL AND
+  P.product_category_name IS NOT NULL AND
+  OP.payment_value IS NOT NULL AND
+  O.order_purchase_timestamp IS NOT NULL
+group by
+  O.order_purchase_timestamp,OP.payment_type,P.product_category_name
+order by 
+  O.order_purchase_timestamp,P.product_category_name,OP.payment_type
+)
+select * from Years_Of_Payment 
+pivot(
+  count(DISTINCT CATEGORY) AS DISTINCTCATEGORY,
+  COUNT(CATEGORY) AS COUNTCATEGORY,
+  sum(TOTAL_SALLARY) sallary
+  FOR lower(PAYMENT_TYPE) in (
+    'credit_card','boleto','voucher' )
+);
